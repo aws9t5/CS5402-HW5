@@ -1,0 +1,186 @@
+---
+title: "Heart Desease"
+output:
+  word_document: default
+  #html_document: default
+  #pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls())
+library(tidyverse)
+
+#package for k nearest neighbor
+library(DMwR)
+
+# included for confusion matrix
+library(caret)
+library(e1071)
+
+#predicting missing values
+library(mice)
+
+
+library(aod)
+library(ggplot2)
+
+```
+
+**Name:**   Austin Sampson
+
+**eMail:** aws9t5@mst.edu
+               
+**Course:** CS 5402
+
+**Date:**  02-24-2020
+
+## Concept Description:
+Train a system to draw a conection between biological metrics and Chronic Heat Desiease 
+
+## Data Collection:
+Data has been provided from the client based off the observation of their feild agents.
+All data has been provided in the heart-disease.csv file
+## Example Description:
+
+**Age**
+
+Scalar to represent age of the patient. zero represents the absolute lowest age. zero years old
+
+**cigsPerDay**
+
+Scalar data to represent amount of cigerates consumed a day. zero represents no cigs being used.
+
+**totChol**
+
+Scalar data to represent amout of choleseterol in the patient. zero represetns an absince of cholersterol.
+
+**sysBP**
+
+systolic blood pressure is scalar data. zero represent no blood presure(in other words death/heart attack).
+
+**diaBP**
+
+Diastolic Blood Pressure is scalar data. zero represent no blood presure(in other words death/heart attack).
+
+**BMI**
+
+body mass index is Scalar data representing expected body mass in respect to age group. zero means no body mass.
+
+**Heart Rate**
+
+Scalar Data, Zero represents the absince of a heart beat.
+
+**Blood Glucose level**
+
+Scalar Data, zero represnts an absince of Glucose in the body.
+
+**CHD**
+
+Chronic Heart Disease. This is our concept.
+
+## Data Import and Wrangling:
+
+```{R}
+#import data
+data <- read.csv("heart-disease.csv")
+
+#impute missing values (linear regression)
+imp <- mice(data, method = "norm.predict", m = 1)
+
+#store data in graph form
+data_imp <- complete(imp)
+
+#Partition data set to 70% train, 30% test.
+smp_size <- floor(0.70*nrow(data_imp))
+set.seed(123)
+
+train_ind <- sample(seq_len(nrow(data_imp)), size = smp_size)
+
+#create train and test tables
+train <- data_imp[train_ind, ]
+test <- data_imp[-train_ind, ]
+
+```
+
+## Mining and Analytics:
+
+First I will begin with developing the Logistical Regression Model
+```{R}
+#create Model
+log_model <- glm(CHD ~., data = train, family = "binomial"(link="logit"))
+#display model summary
+summary(log_model)
+
+```
+
+The knn operator I am using directly returns the confusion matrix rather than a model.
+therofer I will be covering it in the next section.
+
+```{R}
+#K-nearst Neighbor Function K=3
+nn3 <- kNN(CHD ~ .,train,test,norm=TRUE,k=3)
+#confusion Matrix
+table(test[,'CHD'],nn3)
+
+#K-nearst Neighbor Function K=1
+nn2 <- kNN(CHD ~ .,train,test,norm=TRUE,k=5)
+#confusion Matrix
+table(test[,'CHD'],nn2)
+```
+
+## Evaluation:
+
+*logistical Regression*
+
+
+First I will calculate the confusion matrix for the Logistic Regression Model
+```{r}
+#calculate confusion matrix
+pred_log <- predict(log_model, newdata = test,type="response")
+
+#Code Testing
+test$CHD <- as.factor(test$CHD)
+temp <- as.numeric(pred_log>0.5)
+temp <- as.factor(temp)
+#code Testing
+
+confusionMatrix(temp, test$CHD)
+```
+
+
+*K Nearest Neighbor*
+
+```{r}
+#K-nearst Neighbor Function K=3
+nn3 <- kNN(CHD ~ .,train,test,norm=TRUE,k=3)
+#confusion Matrix
+table(test[,'CHD'],nn3)
+
+```
+Error Rate = (65+165)/(1017+65+165+25)=0.1808
+
+Accuracy = (1017+25)/(1017+65+165+25)=0.8192
+
+Precission= (1017)/(1017+65)=0.9621
+
+Recall=(1017)/(1017+165)=0.9399
+
+F-measure=(2*0.9399*0.9621)/(0.8589+0.9621)=0.9075
+
+Based off the results of the confusion matrices for the two model I would present the Logistical Regression model to the customer.
+I would do this because the logistical regressional model presents a slightly better accuraccy but more importantly the model produces
+significantly less false negatives.  Due to the nature of what we are predicting being corolated to the risk of heart attack or stroke
+we should prioritize minimizing false negatives because they present an increased risk of death. False positives can be identified with
+further medical tests.
+
+## Referinces:
+
+https://cran.r-project.org/web/packages/mice/mice.pdf
+https://stats.stackexchange.com/questions/100841/imputation-by-regression-in-r
+https://stackoverflow.com/questions/17200114/how-to-split-data-into-training-testing-sets-using-sample-function
+
+https://www.rdocumentation.org/packages/DMwR/versions/0.4.1/topics/kNN
+https://stats.idre.ucla.edu/r/dae/logit-regression/
+https://stats.idre.ucla.edu/r/dae/logit-regression/
+https://intellipaat.com/community/1546/error-in-confusion-matrix-the-data-and-reference-factors-must-have-the-same-number-of-levels
